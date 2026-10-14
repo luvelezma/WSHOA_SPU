@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8810 41st Ave SW – Water, Sewer and Solid Waste Split</title>
+<style>
+  :root { color-scheme: light dark; --b:#8884; --acc:#0a6cff; --mut:#888; }
+  body { font:15px/1.45 -apple-system,system-ui,sans-serif; max-width:920px; margin:24px auto; padding:0 16px; }
+  h1 { font-size:22px; margin:0 0 2px } h2 { font-size:16px; margin:26px 0 8px }
+  .sub { color:var(--mut); margin-bottom:8px }
+  table { border-collapse:collapse; width:100%; margin:6px 0 }
+  th,td { border:1px solid var(--b); padding:6px 8px; text-align:right; white-space:nowrap }
+  th { background:#8881; font-weight:600 } td:first-child,th:first-child { text-align:left }
+  input { font:inherit; padding:4px 6px; border:1px solid var(--b); border-radius:6px; background:transparent; color:inherit; width:100%; box-sizing:border-box; text-align:right }
+  input.name { text-align:left }
+  input[type=checkbox] { width:auto; padding:0 } td.c { text-align:center }
+  .in { background:#0a6cff12 } .tot td { font-weight:700; background:#8881 }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:10px 14px }
+  .grid label { display:block; font-size:12px; color:var(--mut); margin-bottom:2px }
+  .note { font-size:13px; color:var(--mut) } .ok { color:#1a8f3c } .bad { color:#d33 }
+  ul { margin:6px 0 0 18px; padding:0 } .scroll { overflow-x:auto }
+  button { font:inherit; padding:6px 12px; border-radius:8px; border:1px solid var(--b); background:transparent; color:inherit; cursor:pointer }
+  @media print { button { display:none } }
+</style>
+</head>
+<body>
+
+<h1>Water, Sewer and Solid Waste Split</h1>
+<div class="sub">8810 41st Ave SW (3-unit condo) · Seattle Public Utilities · split by meter readings (water &amp; sewer) and bill lines (solid waste)</div>
+<button onclick="window.print()">Print / Save PDF</button>
+
+<h2>1. Property &amp; method profile</h2>
+<table>
+  <tr><td>Property</td><td style="text-align:left">8810 41st Ave SW, Seattle WA 98136 · 3 units · one master SPU account</td></tr>
+  <tr><td>Meter</td><td style="text-align:left">U.S. Gallons, model PD25, 1″ · 1 pulse = 10 gal; the odometer's last digit is a fixed 0</td></tr>
+  <tr><td>Conversion</td><td style="text-align:left">1 CCF = 748.05 gal</td></tr>
+  <tr><td>SPU rates (this bill)</td><td style="text-align:left">Base $47.67 · Summer $5.98 and $7.39 per CCF · Winter $5.82 per CCF · Sewer $20.18 per CCF</td></tr>
+</table>
+<ul class="note">
+  <li><b>Base charge:</b> split in equal thirds, since it is owed regardless of use.</li>
+  <li><b>Water usage:</b> (water total − base) × each unit's share of the billed CCF.</li>
+  <li><b>Sewer:</b> total × each unit's water-usage share (SPU bills sewer on a fixed CCF, so water share is the proxy).</li>
+  <li><b>Unit usage:</b> average gal/day from that unit's readings × days in the bill period ÷ 748.05.</li>
+  <li><b>Unit without a reading:</b> assigned the remainder of the billed CCF.</li>
+  <li><b>Solid waste:</b> each line on the bill is split equally among the units checked for that line. Extra garbage goes to the unit that incurred it.</li>
+</ul>
+
+<h2>2. Bill inputs <span class="note">(update from each new bill)</span></h2>
+<div class="grid">
+  <div><label>Service from</label><input class="in" type="date" id="bFrom" value="2026-07-29"></div>
+  <div><label>Service through</label><input class="in" type="date" id="bTo" value="2026-10-02"></div>
+  <div><label>Total CCF billed</label><input class="in" type="number" step="0.01" id="tCCF" value="27"></div>
+  <div><label>Current water service ($)</label><input class="in" type="number" step="0.01" id="water" value="224.84"></div>
+  <div><label>Current sewer service ($)</label><input class="in" type="number" step="0.01" id="sewer" value="173.55"></div>
+  <div><label>Water base service charge ($)</label><input class="in" type="number" step="0.01" id="base" value="47.67"></div>
+  <div><label>Gallons per CCF</label><input class="in" type="number" step="0.01" id="gpc" value="748.05"></div>
+  <div><label>Gallons per odometer count</label><input class="in" type="number" step="1" id="mult" value="10"></div>
+</div>
+<div class="note" id="bdays" style="margin-top:6px"></div>
+
+<h2>3. Meter readings <span class="note">(odometer digits, excluding the fixed trailing 0)</span></h2>
+<div class="scroll">
+<table id="rd">
+  <tr><th>Unit</th><th>Start reading</th><th>Start date</th><th>End reading</th><th>End date</th>
+      <th>Gallons</th><th>Days</th><th>Gal/day</th></tr>
+</table>
+</div>
+<div class="note">If two readings are present, a blank reading is allocated the remainder.</div>
+
+<h2>4. Split based on meter readings</h2>
+<div class="scroll">
+<table id="sp">
+  <tr><th>Unit</th><th>CCF in bill period</th><th>Share</th><th>Water base (equal)</th>
+      <th>Water usage</th><th>Water total</th><th>Sewer</th><th>Amount due</th></tr>
+</table>
+</div>
+<div id="chk" class="note"></div>
+
+<h2>5. Solid waste <span class="note">(from the bill; check the units that share each line)</span></h2>
+<div class="scroll">
+<table id="sw">
+  <tr><th>Item</th><th>Amount ($)</th><th id="swh0"></th><th id="swh1"></th><th id="swh2"></th></tr>
+</table>
+</div>
+<div id="swchk" class="note"></div>
+
+<h2>6. Total due <span class="note">(water &amp; sewer + solid waste)</span></h2>
+<div class="scroll">
+<table id="tdue">
+  <tr><th>Unit</th><th>Water &amp; sewer</th><th>Solid waste</th><th>Total due</th></tr>
+</table>
+</div>
+<div id="tdchk" class="note"></div>
+
+<footer class="note" style="margin-top:32px;padding-top:12px;border-top:1px solid var(--b);text-align:center">© 2026 Lucia Velez. Exclusive use of West Seattle Fauntlee Hills, 8810 41st Ave SW condo.</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+// name, start reading, start date, end reading, end date
+const units = [
+  ["Lucia",  482, "2026-05-12", 1442, "2026-10-09"],
+  ["Nicole",   0, "2026-07-08",  880, "2026-10-09"],
+  ["Martha", "",  "",           "",  ""]
+];
+const rd = $("rd"), sp = $("sp");
+units.forEach((u,i) => {
+  rd.insertAdjacentHTML("beforeend", `<tr>
+    <td><input class="in name" id="n${i}" value="${u[0]}"></td>
+    <td><input class="in" type="number" id="s${i}" value="${u[1]}"></td>
+    <td><input class="in" type="date" id="sd${i}" value="${u[2]}"></td>
+    <td><input class="in" type="number" id="e${i}" value="${u[3]}"></td>
+    <td><input class="in" type="date" id="ed${i}" value="${u[4]}"></td>
+    <td id="g${i}"></td><td id="d${i}"></td><td id="r${i}"></td></tr>`);
+  sp.insertAdjacentHTML("beforeend", `<tr id="p${i}"><td id="pn${i}"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`);
+});
+sp.insertAdjacentHTML("beforeend", `<tr class="tot" id="pt"><td>Total</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`);
+
+// Solid waste lines: [label, amount, shared-by flags in unit order (Lucia, Nicole, Martha)]
+const swItems = [
+  ["Garbage (32 gal, weekly)", 279.30, [1,1,1]],
+  ["Extra garbage",             14.40, [0,0,1]],
+  ["Food/yard waste (Aug)",     23.63, [1,1,1]],
+  ["Food/yard waste (Sep)",     15.25, [1,0,1]]
+];
+swItems.forEach((it,j) => $("sw").insertAdjacentHTML("beforeend",
+  `<tr><td><input class="in name" id="swl${j}" value="${it[0]}"></td>
+   <td><input class="in" type="number" step="0.01" id="swa${j}" value="${it[1]}"></td>` +
+  units.map((_,i) => `<td class="c"><input type="checkbox" id="swc${j}_${i}" ${it[2][i] ? "checked" : ""}></td>`).join("") + `</tr>`));
+units.forEach((_,i) => $("tdue").insertAdjacentHTML("beforeend", `<tr id="t${i}"><td id="tn${i}"></td><td></td><td></td><td></td></tr>`));
+$("tdue").insertAdjacentHTML("beforeend", `<tr class="tot" id="tdtot"><td>Total</td><td></td><td></td><td></td></tr>`);
+
+const DAY = 86400000, $f = (n,d=2) => isFinite(n) ? n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}) : "–";
+const num = id => parseFloat($(id).value);
+const days = (a,b) => Math.round((new Date(b) - new Date(a)) / DAY);
+const setRow = (id, cells) => { const tds = $(id).children; cells.forEach((c,i) => tds[i+1].textContent = c); };
+
+function calc() {
+  const bd = days($("bFrom").value, $("bTo").value), tCCF = num("tCCF"), gpc = num("gpc"), mult = num("mult");
+  const water = num("water"), sewer = num("sewer"), base = num("base");
+  $("bdays").textContent = `Bill period: ${bd} days · ${$f(tCCF*gpc,0)} gal billed (${$f(tCCF*gpc/bd,0)} gal/day for the building)`;
+
+  const U = units.map((_,i) => {
+    const s = parseFloat($("s"+i).value), e = parseFloat($("e"+i).value);
+    const d = days($("sd"+i).value, $("ed"+i).value);
+    const has = isFinite(s) && isFinite(e) && d > 0;
+    const gal = has ? (e - s) * mult : NaN;
+    $("g"+i).textContent = has ? $f(gal,0) : "remainder";
+    $("d"+i).textContent = has ? d : "–";
+    $("r"+i).textContent = has ? $f(gal/d,1) : "–";
+    return { name: $("n"+i).value, has, ccf: has ? gal/d*bd/gpc : NaN };
+  });
+  const metered = U.filter(u => u.has).reduce((a,u) => a + u.ccf, 0);
+  const missing = U.filter(u => !u.has);
+  missing.forEach(u => u.ccf = (tCCF - metered) / missing.length);
+
+  const n = U.length, usagePool = water - base;
+  const wsDue = [];
+  let tc=0, tb=0, tu=0, tw=0, ts=0, tt=0, tsh=0;
+  U.forEach((u,i) => {
+    const sh = u.ccf / (missing.length === 0 ? metered : tCCF), wb = base/n, wu = usagePool*sh, ws = wb + wu, se = sewer*sh, due = ws + se;
+    $("pn"+i).textContent = u.name + (u.has ? "" : " (remainder)");
+    setRow("p"+i, [$f(sh*tCCF), $f(sh*100,1)+"%", "$"+$f(wb), "$"+$f(wu), "$"+$f(ws), "$"+$f(se), "$"+$f(due)]);
+    tc+=sh*tCCF; tsh+=sh; tb+=wb; tu+=wu; tw+=ws; ts+=se; tt+=due; wsDue[i]=due;
+  });
+  setRow("pt", [$f(tc), $f(tsh*100,1)+"%", "$"+$f(tb), "$"+$f(tu), "$"+$f(tw), "$"+$f(ts), "$"+$f(tt)]);
+  solidWaste(wsDue, water + sewer);
+  const diff = tt - (water + sewer), ok = Math.abs(diff) < 0.01;
+  $("chk").innerHTML = ok ? `<span class="ok">✓ Split ties to the bill ($${$f(water+sewer)} water + sewer).</span>`
+    : `<span class="bad">Check: split differs from bill by $${$f(diff)}.</span>`;
+}
+function solidWaste(wsDue, wsTotal) {
+  const per = units.map(() => 0), orphan = [];
+  let billed = 0;
+  swItems.forEach((_, j) => {
+    const amt = num("swa"+j) || 0, on = units.map((_, i) => $("swc"+j+"_"+i).checked), cnt = on.filter(Boolean).length;
+    billed += amt;
+    if (cnt) on.forEach((v, i) => { if (v) per[i] += amt / cnt; });
+    else if (amt) orphan.push($("swl"+j).value);
+  });
+  let tw = 0, ts = 0, tt = 0;
+  units.forEach((_, i) => {
+    const name = $("n"+i).value, t = wsDue[i] + per[i];
+    $("swh"+i).textContent = name; $("tn"+i).textContent = name;
+    setRow("t"+i, ["$"+$f(wsDue[i]), "$"+$f(per[i]), "$"+$f(t)]);
+    tw += wsDue[i]; ts += per[i]; tt += t;
+  });
+  setRow("tdtot", ["$"+$f(tw), "$"+$f(ts), "$"+$f(tt)]);
+  $("swchk").innerHTML = orphan.length ? `<span class="bad">No unit is checked for: ${orphan.join(", ")}.</span>`
+    : (Math.abs(ts - billed) < 0.01 ? `<span class="ok">✓ Solid waste split ties to the bill ($${$f(billed)}).</span>`
+    : `<span class="bad">Check: solid waste split differs from the bill by $${$f(ts - billed)}.</span>`);
+  $("tdchk").innerHTML = Math.abs(tt - (wsTotal + billed)) < 0.01
+    ? `<span class="ok">✓ Total due ties to the bill ($${$f(wsTotal + billed)}: water, sewer and solid waste).</span>`
+    : `<span class="bad">Check: total due differs from the bill by $${$f(tt - (wsTotal + billed))}.</span>`;
+}
+document.querySelectorAll("input").forEach(el => { el.addEventListener("input", calc); el.addEventListener("change", calc); });
+calc();
+</script>
+</body>
+</html>
